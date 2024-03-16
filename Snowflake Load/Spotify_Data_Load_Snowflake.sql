@@ -1,0 +1,97 @@
+CREATE OR REPLACE TABLE SPOTIFY_ETL_DB.SPOTIFY_DATALOAD.ALBUMS (
+	album_id VARCHAR(255),
+	album_name VARCHAR(255),
+	release_date DATE,
+	total_tracks NUMBER(38,0),
+	url VARCHAR(255)
+);
+
+CREATE OR REPLACE TABLE SPOTIFY_ETL_DB.SPOTIFY_DATALOAD.ARTISTS (
+	ARTIST_ID VARCHAR(255),
+	ARTIST_NAME VARCHAR(255),
+	EXTERNAL_URL VARCHAR(255)
+);
+
+CREATE OR REPLACE TABLE SPOTIFY_ETL_DB.SPOTIFY_DATALOAD.SONGS (
+	SONG_ID VARCHAR(255),
+	SONG_NAME VARCHAR(255),
+	DURATION_MS INTEGER,
+	URL VARCHAR(255),
+	POPULARITY NUMBER(38,0),
+	SONG_ADDED DATE,
+	ALBUM_ID VARCHAR(255),
+	ARTIST_ID VARCHAR(255)
+);
+
+CREATE OR REPLACE FILE FORMAT my_fileformat
+TYPE ='CSV'
+FIELD_DELIMITER = ','
+SKIP_HEADER = 1
+
+
+
+CREATE OR REPLACE STAGE my_stage
+  URL='s3://spotify-etl-project-manideep/transformed_data/'
+  STORAGE_INTEGRATION = s3_init
+  FILE_FORMAT = my_fileformat
+
+
+
+COPY INTO ALBUMS  
+  FROM @my_stage/album_data/
+  ON_ERROR = 'CONTINUE';
+  
+SELECT * FROM ALBUMS;
+
+
+COPY INTO ARTISTS
+  FROM @my_stage/artist_data
+  ON_ERROR = 'CONTINUE';
+
+SELECT * FROM ARTISTS;
+
+
+COPY INTO SONGS
+  FROM @my_stage/songs_data
+  ON_ERROR = 'CONTINUE';
+
+SELECT * FROM SONGS;
+
+
+-- Create a Snowflake pipe
+CREATE OR REPLACE PIPE spotify_pipe_albums
+AUTO_INGEST = TRUE
+AS
+COPY INTO ALBUMS
+FROM @my_stage/album_data
+FILE_FORMAT = (FORMAT_NAME= 'my_fileformat')
+ON_ERROR = 'CONTINUE';
+
+DESC pipe spotify_pipe_albums
+
+CREATE OR REPLACE PIPE spotify_pipe_artists
+AUTO_INGEST = TRUE
+AS
+COPY INTO ARTISTS
+FROM @my_stage/artist_data
+FILE_FORMAT = (FORMAT_NAME= 'my_fileformat')
+ON_ERROR = 'CONTINUE';
+
+DESC pipe spotify_pipe_artists
+
+CREATE OR REPLACE PIPE spotify_pipe_songs
+AUTO_INGEST = TRUE
+AS
+COPY INTO SONGS
+FROM @my_stage/songs_data
+FILE_FORMAT = (FORMAT_NAME= 'my_fileformat')
+ON_ERROR = 'CONTINUE';
+
+DESC pipe spotify_pipe_songs
+
+
+SELECT * FROM ALBUMS;
+
+SELECT * FROM ARTISTS;
+
+SELECT * FROM SONGS;
